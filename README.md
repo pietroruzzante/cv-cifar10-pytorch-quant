@@ -1,6 +1,6 @@
 # MobileNetV2 Fine-Tuning on CIFAR-10 with MLflow & INT8 Quantization
 
-Fine-tuned MobileNetV2 on CIFAR-10 with full experiment tracking via MLflow. Applied post-training INT8 quantization and unstructured pruning, simulating a real edge deployment compression workflow.
+Transfer learning pipeline on CIFAR-10 using MobileNetV2, from training to edge-ready deployment. A two-phase strategy (feature extraction → full fine-tuning) brings test accuracy to **94.7%**. The model is then compressed via INT8 quantization, shrinking from 8.51 MB to **2.31 MB (-73%)** in ONNX format — ready for deployment via TensorRT or OpenVINO. Unstructured pruning experiments show that MobileNetV2's architecture tolerates up to 30% sparsity (-2.2% accuracy) before collapsing, confirming quantization as the right compression path. All experiments tracked with MLflow.
 
 **Stack:** Python · PyTorch · MLflow · ONNX Runtime · scikit-learn
 
