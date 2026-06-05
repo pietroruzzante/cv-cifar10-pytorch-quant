@@ -1,16 +1,25 @@
+# Python
 __pycache__/
 *.pyc
 *.pyo
+
+# Environments
 .env
 venv/
 .venv/
+
+# Data & models (large binary files)
 cv-cifar10/data/
-cv-cifar10/mlruns/
-cv-cifar10/models/*.pth
+cv-cifar10/models/
 *.onnx
-.DS_Store
-CLAUDE.md
+*.onnx.data
+
+# MLflow
+mlruns/
 *.db
-cv-cifar10/src/mlflow.db
-cv-cifar10/src/mlruns/1/34262fd64748433a82bdaea46c779207/artifacts/mobilenet_finetuned.pth
-cv-cifar10/src/mlflow.db
+
+# macOS
+.DS_Store
+
+# Project instructions (local only)
+CLAUDE.md

@@ -1,4 +1,5 @@
 import argparse
+import os
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -44,6 +45,7 @@ def evaluate(args):
     _plot_confusion_matrix(all_labels, all_preds, args.output)
 
     if args.run_id:
+        mlflow.set_tracking_uri("sqlite:///mlflow.db")
         with mlflow.start_run(run_id=args.run_id):
             mlflow.log_metric("test_acc", accuracy)
             mlflow.log_artifact(args.output)
@@ -85,6 +87,7 @@ if __name__ == "__main__":
     parser.add_argument("--data_dir",    default="../data")
     parser.add_argument("--batch_size",  type=int, default=64)
     parser.add_argument("--output",      default="../models/confusion_matrix.png")
+    parser.add_argument("--mlruns_dir",  default="../mlruns")
     parser.add_argument("--run_id",      default=None, help="MLflow run ID to log results into")
     args = parser.parse_args()
     evaluate(args)
