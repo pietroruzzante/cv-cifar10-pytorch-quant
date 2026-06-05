@@ -10,3 +10,7 @@ cv-cifar10/models/*.pth
 *.onnx
 .DS_Store
 CLAUDE.md
+*.db
+cv-cifar10/src/mlflow.db
+cv-cifar10/src/mlruns/1/34262fd64748433a82bdaea46c779207/artifacts/mobilenet_finetuned.pth
+cv-cifar10/src/mlflow.db
