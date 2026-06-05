@@ -72,7 +72,7 @@ def run(args):
         apply_pruning(model, sparsity)
         actual_sparsity = count_sparsity(model)
         acc = evaluate_accuracy(model, test_loader, device)
-        drop = baseline_acc - acc
+        drop = acc - baseline_acc
         print(f"  Pruning {sparsity*100:.0f}%  | sparsity={actual_sparsity:.3f} | "
               f"acc={acc:.4f} | drop={drop:+.4f}")
         results[f"pruned_{int(sparsity*100)}pct_acc"] = acc

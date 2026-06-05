@@ -8,15 +8,29 @@ Fine-tuned MobileNetV2 on CIFAR-10 with full experiment tracking via MLflow. App
 
 ## Results
 
-| Metric | Value |
-|--------|-------|
-| Test accuracy | ≥ 88% |
-| FP32 model size (ONNX) | 8.51 MB |
-| INT8 model size (ONNX) | 2.31 MB (**-73%**) |
-| FP32 latency (CPU, Apple Silicon) | 2.31 ms/sample |
-| INT8 latency (CPU, Apple Silicon) | 8.98 ms/sample |
+### Accuracy
+| Model | Test Accuracy |
+|-------|--------------|
+| Baseline FP32 (phase 1 only) | 78.1% |
+| Fine-tuned FP32 (phase 1 + 2) | **94.7%** |
 
-> Latency on Apple Silicon does not improve with INT8 — the CPU lacks dedicated integer execution units. On target hardware (ARM Cortex with CMSIS-NN, NVIDIA Jetson + TensorRT, Intel + OpenVINO), INT8 latency would decrease significantly. Size reduction is hardware-agnostic and directly reduces flash/RAM requirements on any edge device.
+### Quantization (ONNX)
+| | FP32 | INT8 |
+|---|---|---|
+| Model size | 8.51 MB | 2.31 MB (**-73%**) |
+| Latency (CPU, Apple Silicon) | 2.33 ms | 8.96 ms |
+
+> Latency on Apple Silicon does not improve with INT8 — the CPU lacks dedicated integer execution units. On target hardware (ARM Cortex with CMSIS-NN, NVIDIA Jetson + TensorRT, Intel + OpenVINO) INT8 latency would decrease significantly. Size reduction is hardware-agnostic and directly reduces flash/RAM on any edge device.
+
+### Pruning (unstructured L1, applied to fine-tuned model)
+| Sparsity | Accuracy | Drop |
+|----------|----------|------|
+| 0% (baseline) | 94.7% | — |
+| 30% | 92.5% | -2.1% |
+| 50% | 29.5% | -65.2% |
+| 70% | 10.0% | -84.7% |
+
+> MobileNetV2 is already a highly compressed architecture — its depthwise separable convolutions leave little redundancy. Accuracy holds at 30% sparsity but collapses at 50%, unlike larger models (e.g. ResNet50) which tolerate 70-80% pruning with minimal degradation. This confirms that further compression of MobileNetV2 requires quantization rather than pruning.
 
 ---
 
