@@ -58,24 +58,21 @@ pip install -r requirements.txt
 ```
 
 ```bash
-cd src
+# train (downloads CIFAR-10 automatically on first run)
+make train
 
-# train (downloads CIFAR-10 automatically)
-python3 train.py --epochs 10 --batch_size 64 --lr 1e-3
-
-# evaluate on test set
-python3 evaluate.py
-
-# quantize and benchmark
-python3 quantize.py
-
-# export to ONNX and verify
-python3 export_onnx.py
+# open MLflow UI at http://localhost:5001 — grab the RUN_ID from there
+make mlflow
 ```
 
 ```bash
-# experiment tracking UI
-mlflow ui --backend-store-uri sqlite:///$(pwd)/src/mlflow.db --port 5001
+# run evaluation, quantization and pruning (replace with your run ID)
+make evaluate RUN_ID=<run_id>
+make quantize RUN_ID=<run_id>
+make prune    RUN_ID=<run_id>
+
+# standalone ONNX export
+make export
 ```
 
 ---
