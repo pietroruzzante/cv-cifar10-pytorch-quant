@@ -1,64 +1,39 @@
 # MobileNetV2 Fine-Tuning on CIFAR-10 with MLflow & INT8 Quantization
 
-Fine-tuned MobileNetV2 on CIFAR-10 with full experiment tracking via MLflow. Applied post-training INT8 quantization achieving ~75% model size reduction, with inference latency benchmarking targeting edge deployment scenarios.
+Fine-tuned MobileNetV2 on CIFAR-10 with full experiment tracking via MLflow. Applied post-training INT8 quantization and unstructured pruning, simulating a real edge deployment compression workflow.
 
-**Stack:** Python · PyTorch · MLflow · scikit-learn
-
----
-
-## Results
-
-### Accuracy
-| Model | Test Accuracy |
-|-------|--------------|
-| Baseline FP32 (phase 1 only) | 78.1% |
-| Fine-tuned FP32 (phase 1 + 2) | **94.7%** |
-
-### Quantization (ONNX)
-| | FP32 | INT8 |
-|---|---|---|
-| Model size | 8.51 MB | 2.31 MB (**-73%**) |
-| Latency (CPU, Apple Silicon) | 2.33 ms | 8.96 ms |
-
-> Latency on Apple Silicon does not improve with INT8 — the CPU lacks dedicated integer execution units. On target hardware (ARM Cortex with CMSIS-NN, NVIDIA Jetson + TensorRT, Intel + OpenVINO) INT8 latency would decrease significantly. Size reduction is hardware-agnostic and directly reduces flash/RAM on any edge device.
-
-### Pruning (unstructured L1, applied to fine-tuned model)
-| Sparsity | Accuracy | Drop |
-|----------|----------|------|
-| 0% (baseline) | 94.7% | — |
-| 30% | 92.5% | -2.1% |
-| 50% | 29.5% | -65.2% |
-| 70% | 10.0% | -84.7% |
-
-> MobileNetV2 is already a highly compressed architecture — its depthwise separable convolutions leave little redundancy. Accuracy holds at 30% sparsity but collapses at 50%, unlike larger models (e.g. ResNet50) which tolerate 70-80% pruning with minimal degradation. This confirms that further compression of MobileNetV2 requires quantization rather than pruning.
+**Stack:** Python · PyTorch · MLflow · ONNX Runtime · scikit-learn
 
 ---
 
 ## Why these choices
 
-**MobileNetV2 over ResNet:** depthwise separable convolutions reduce parameters from ~25M (ResNet50) to ~3.4M with comparable accuracy on this task. On embedded hardware (no dedicated GPU), fewer parameters means less flash memory, fewer CPU cycles, lower latency.
+**MobileNetV2 over ResNet:** uses depthwise separable convolutions, which factorize a standard convolution into a spatial step and a channel-mixing step. This reduces parameters from ~25M (ResNet50) to ~3.4M with comparable accuracy — directly relevant to embedded targets where flash memory and compute budget are constrained.
 
-**Feature extraction, not full fine-tuning:** backbone frozen, only the classifier head retrained (~12K trainable params out of 3.4M). The pretrained ImageNet filters already encode useful low-level features (edges, textures, shapes) that transfer well to CIFAR-10. ImageNet normalization is kept for the same reason — the backbone expects inputs in that distribution.
+**Two-phase training strategy:**
 
-**Dynamic INT8 quantization:** weights compressed from FP32 (4 bytes) to INT8 (1 byte) at save time. No calibration dataset required. Activations quantized at runtime. Straightforward tradeoff: minimal accuracy loss, significant size and latency gains, immediate deployability on CPU-only hardware.
+- **Phase 1 — Feature extraction (5 epochs, lr=1e-3):** the backbone is frozen. Only the classifier head (~12K params out of 3.4M) is trained. The pretrained ImageNet weights encode generic features (edges, textures, shapes) that transfer well to CIFAR-10. Starting here avoids destroying those filters with a high learning rate before the head has converged.
+
+- **Phase 2 — Fine-tuning (10 epochs, lr=1e-4):** the full backbone is unfrozen and trained end-to-end with a learning rate 10x lower, using cosine annealing. This lets the backbone adapt its filters to CIFAR-10 without catastrophic forgetting of the pretrained representations. The accuracy jump from ~78% to ~95% happens entirely in this phase.
+
+**INT8 quantization via ONNX Runtime:** the trained model is exported to ONNX (FP32) and quantized dynamically to INT8. Each weight goes from 4 bytes to 1 byte, achieving ~73% model size reduction. ONNX is the standard interchange format for edge runtimes — the same INT8 model can be deployed via TensorRT (NVIDIA Jetson), OpenVINO (Intel), or ONNX Runtime Mobile with no further conversion.
+
+**Unstructured L1 pruning:** individual weights below a threshold are zeroed out globally across all Conv2d and Linear layers. MobileNetV2 tolerates up to 30% sparsity with minimal degradation but collapses beyond 50% — its architecture is already near-optimal with little redundancy to remove, making quantization the preferred compression path.
 
 ---
 
 ## Project structure
 
 ```
-cv-cifar10/
 ├── src/
 │   ├── dataset.py      # CIFAR-10 DataLoader, ImageNet normalization, train/val/test splits
 │   ├── model.py        # MobileNetV2 with custom 10-class head
-│   ├── train.py        # Training loop, MLflow logging, checkpoint saving
+│   ├── train.py        # Two-phase training loop with MLflow logging
 │   ├── evaluate.py     # Test accuracy, per-class report, confusion matrix
-│   └── quantize.py     # Dynamic INT8 PTQ, size & latency benchmarking
-├── models/
-│   ├── mobilenet_finetuned.pth
-│   ├── mobilenet_quantized.pth
-│   └── mobilenet.onnx
-├── mlruns/             # MLflow experiment logs
+│   ├── quantize.py     # ONNX export + INT8 dynamic quantization + size benchmark
+│   ├── prune.py        # Unstructured L1 pruning across sparsity levels
+│   └── export_onnx.py  # Standalone FP32 ONNX export with verification
+├── Makefile
 └── requirements.txt
 ```
 
@@ -84,15 +59,30 @@ make mlflow
 make evaluate RUN_ID=<run_id>
 make quantize RUN_ID=<run_id>
 make prune    RUN_ID=<run_id>
-
-# standalone ONNX export
-make export
 ```
 
 ---
 
-## Quantization — what it means for edge deployment
+## Results
 
-Dynamic PTQ compresses Linear layer weights from FP32 → INT8. The result is a model ~4x smaller on disk and faster on CPU-only hardware, with negligible accuracy regression.
+### Accuracy — two-phase training
+| Phase | Test Accuracy |
+|-------|--------------|
+| Phase 1 only (frozen backbone) | 78.1% |
+| Phase 1 + 2 (full fine-tuning) | **94.7%** |
 
-For real embedded deployment (microcontroller, FPGA, NPU), the next step would be ONNX export — enabling hardware-agnostic runtimes like TensorRT (NVIDIA) or OpenVINO (Intel). The quantized weights translate directly, since both runtimes natively support INT8 inference.
+### Quantization — model size
+| Format | Size |
+|--------|------|
+| FP32 ONNX | 8.51 MB |
+| INT8 ONNX | 2.31 MB (**-73%**) |
+
+### Pruning — accuracy vs sparsity
+| Sparsity | Accuracy | Drop |
+|----------|----------|------|
+| 0% (baseline) | 94.7% | — |
+| 30% | 92.5% | -2.2% |
+| 50% | 29.5% | -65.2% |
+| 70% | 10.0% | -84.7% |
+
+> The sharp accuracy cliff between 30% and 50% confirms that MobileNetV2 has minimal weight redundancy. Quantization is the correct compression path for this architecture.
