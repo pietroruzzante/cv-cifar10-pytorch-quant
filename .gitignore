@@ -9,8 +9,8 @@ venv/
 .venv/
 
 # Data & models (large binary files)
-cv-cifar10/data/
-cv-cifar10/models/
+data/
+models/
 *.onnx
 *.onnx.data
 
