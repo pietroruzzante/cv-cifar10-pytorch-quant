@@ -22,6 +22,32 @@ Transfer learning pipeline on CIFAR-10 using MobileNetV2, from training to edge-
 
 ---
 
+## Results
+
+### Accuracy — two-phase training
+| Phase | Test Accuracy |
+|-------|--------------|
+| Phase 1 only (frozen backbone) | 78.1% |
+| Phase 1 + 2 (full fine-tuning) | **94.7%** |
+
+### Quantization — model size
+| Format | Size |
+|--------|------|
+| FP32 ONNX | 8.51 MB |
+| INT8 ONNX | 2.31 MB (**-73%**) |
+
+### Pruning — accuracy vs sparsity
+| Sparsity | Accuracy | Drop |
+|----------|----------|------|
+| 0% (baseline) | 94.7% | — |
+| 30% | 92.5% | -2.2% |
+| 50% | 29.5% | -65.2% |
+| 70% | 10.0% | -84.7% |
+
+> The sharp accuracy cliff between 30% and 50% confirms that MobileNetV2 has minimal weight redundancy. Quantization is the correct compression path for this architecture.
+
+---
+
 ## Project structure
 
 ```
@@ -63,26 +89,4 @@ make prune    RUN_ID=<run_id>
 
 ---
 
-## Results
 
-### Accuracy — two-phase training
-| Phase | Test Accuracy |
-|-------|--------------|
-| Phase 1 only (frozen backbone) | 78.1% |
-| Phase 1 + 2 (full fine-tuning) | **94.7%** |
-
-### Quantization — model size
-| Format | Size |
-|--------|------|
-| FP32 ONNX | 8.51 MB |
-| INT8 ONNX | 2.31 MB (**-73%**) |
-
-### Pruning — accuracy vs sparsity
-| Sparsity | Accuracy | Drop |
-|----------|----------|------|
-| 0% (baseline) | 94.7% | — |
-| 30% | 92.5% | -2.2% |
-| 50% | 29.5% | -65.2% |
-| 70% | 10.0% | -84.7% |
-
-> The sharp accuracy cliff between 30% and 50% confirms that MobileNetV2 has minimal weight redundancy. Quantization is the correct compression path for this architecture.
